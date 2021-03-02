@@ -50,6 +50,8 @@ class MyDataset(Dataset):
 
         self.__train_data = pd.read_csv(self.__label_root)
         self.__get_column_name(self.__train_data)
+
+        # TODO: data 0.8 / 0.2 split
         if self.__mode == 'train' and config.train_proportion == 1.0:
             # 全数据训练
             self.__img_name_list = [os.path.join(self.__data_root, img_name) for img_name in self.__train_data[self.__img_column_name].values]

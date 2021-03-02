@@ -9,12 +9,14 @@ class Config:
     max_epoch = 20
     train_batch_size = 16
     val_batch_size = 16
+    loss = 'CrossEntropyLoss'
     optimizer = 'sgd'       # adam is alternative with lr:1e-5
     lr = 1e-3
     momentum = 0.9
     device = "cuda"  # cuda  or cpu
     gpu_id = [0]
     num_workers = 4  # how many workers for loading data
+    weight_decay = 5e-4
     lr_decay_epoch = 10
     lr_decay = 0.95  # when val_loss increase, lr = lr*lr_decay
     model_output_dir = 'ckpt/'
