@@ -1,3 +1,4 @@
+import cv2
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from config import Config as config
@@ -62,7 +63,6 @@ class MyDataset(Dataset):
 
     def __getitem__(self, idx):
         if self.__mode == 'train':
-            print(self.__mode)
             self.__get_train_data(idx)
         if self.__mode == 'val':
             self.__get_val_data(idx)
@@ -72,11 +72,12 @@ class MyDataset(Dataset):
 
     def __get_train_data(self, idx):
         img_name = self.__img_name_list[idx]
-        img_data = Image.open(img_name)
-        img_data = img_data.convert('RGB')
+        img_data = cv2.imread(img_name)
+        # img_data = img_data.convert('RGB')
+        img_data = cv2.cvtColor(img_data, cv2.COLOR_BGR2RGB)
 
         if self.__transforms:
-            self.__transforms(img_data)
+            img_data = self.__transforms(image=img_data)['image']
 
         label = np.int32(self.__label_list[idx])
         return img_data.float(), label
