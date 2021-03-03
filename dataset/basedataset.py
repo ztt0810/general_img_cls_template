@@ -1,4 +1,4 @@
-from PIL.Image import Image
+from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from config import Config as config
 import pandas as pd
