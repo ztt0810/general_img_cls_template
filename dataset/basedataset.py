@@ -63,9 +63,9 @@ class MyDataset(Dataset):
 
     def __getitem__(self, idx):
         if self.__mode == 'train':
-            self.__get_train_data(idx)
+            return self.__get_train_data(idx)
         if self.__mode == 'val':
-            self.__get_val_data(idx)
+            return self.__get_val_data(idx)
 
     def __len__(self):
         return len(self.__img_name_list)
@@ -79,7 +79,7 @@ class MyDataset(Dataset):
         if self.__transforms:
             img_data = self.__transforms(image=img_data)['image']
 
-        label = np.int32(self.__label_list[idx])
+        label = int(self.__label_list[idx])
         return img_data.float(), label
 
     def __get_val_data(self, idx):

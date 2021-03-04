@@ -1,10 +1,12 @@
 from tensorboardX import SummaryWriter
+from torch import nn
 from tqdm import tqdm
 from dataset import MyDataset
 from config import Config
 from dataset import Pipline
 from torch.utils.data import DataLoader
 from utils import accuracy, AverageMeter
+from utils import BuildNet
 import torch
 import torch.optim as optim
 
@@ -22,6 +24,8 @@ class Trainer:
         self.criterion = None
         self.backbone = None
         self.pipline = Pipline()
+        self.writer = SummaryWriter('../log')    # create tensorboard
+
 
         self.__init_train_status()
         self.__init_model()
@@ -40,14 +44,20 @@ class Trainer:
             return torch.nn.CrossEntropyLoss().to(self.device)
 
     def __init_model(self):
-        if self.backbone == 'efficientnet-b6':
-            from model import EfficientNet
-            self.model = EfficientNet.from_pretrained(model_name=self.backbone)
-            self.model.to(self.device)
+        model_builder = BuildNet(self.backbone, Config.num_classes)
+        self.model = model_builder()
 
     def __init_optimizer(self):
         if Config.optimizer == 'sgd':
             self.optimizer = optim.SGD(self.model.parameters(), lr=Config.lr, weight_decay=Config.weight_decay)
+
+        if Config.optimizer == 'adam':
+            self.optimizer = optim.Adam(
+                self.model.parameters(),
+                lr=Config.lr,
+                weight_decay=Config.weight_decay,
+                amsgrad=False
+            )
 
     def __init_lr_scheduler(self):
         if Config.lr_scheduler == 'CosineAnnealingWarmRestarts':
@@ -90,12 +100,12 @@ class Trainer:
 
     def train_one_epoch(self):
         self.model.train()          # train mode
-        writer = SummaryWriter()    # create tensorboard
         losses = AverageMeter()
         top1 = AverageMeter()
         top5 = AverageMeter()
 
-        for i, (data, label) in tqdm(enumerate(self.train_dataloader)):
+        pbar = tqdm(enumerate(self.train_dataloader), total=len(self.train_dataloader))
+        for i, (data, label) in pbar:
             data = data.cuda()
             label = label.cuda()
 
@@ -103,10 +113,15 @@ class Trainer:
             loss = self.criterion(output, label)
 
             # measure accuracy and record loss
-            prec1, prec5 = accuracy(output.data, label.data, topk=(1, 5))
+            prec1, prec5 = accuracy(output.data, label.data, topk=(1, 3))
             losses.update(loss.item(), data.size(0))
             top1.update(prec1.item(), data.size(0))
             top5.update(prec5.item(), data.size(0))
+
+            # print(f'train losses: {loss}')
+            log_info = 'train loss: ' + str(losses.avg)
+            pbar.set_description(log_info)
+            self.writer.add_scalar('train_loss',loss.item(), global_step=i)
 
             self.optimizer.zero_grad()
             loss.backward()
@@ -117,7 +132,26 @@ class Trainer:
 
     @torch.no_grad()
     def val_one_epoch(self):
-        pass
+        self.model.eval()
+        losses = AverageMeter()
+        top1 = AverageMeter()
+        top5 = AverageMeter()
+        pbar = tqdm(enumerate(self.train_dataloader, len(self.train_dataloader)))
+
+        for i, (data, label) in pbar:
+            data, label = data.cuda(), label.cuda()
+
+            output = self.model(data)
+            loss = self.criterion(output, label)
+
+            prec1, prec5 = accuracy(output.data, label.data, topk=(1, 3))
+            losses.update(loss.item(), data.size(0))
+            top1.update(prec1.item(), data.size(0))
+            top5.update(prec5.item(), data.size(0))
+            log_info = 'val loss: ' + str(losses.avg)
+            pbar.set_description(log_info)
+
+        return losses.avg, top1.avg, top5.avg
 
     def run_train(self):
         for epoch in range(Config.max_epoch):
@@ -130,11 +164,14 @@ class Trainer:
                     optimizer = self.optimizer,
                     model_name=f'epoch{epoch}.pth'
                 )
+            val_loss, val_top1, val_top5 = self.val_one_epoch()
+            print(f'val_loss: {val_loss}, val_top1: {val_top1}, val_top5: {val_top5}')
+        self.writer.close()
 
     def save_model(self, epoch, model, optimizer, model_name):
         torch.save({
             'epoch': epoch + 1,
-            'state_dict': model.module.state_dict(),
+            'state_dict': model.state_dict(),
             'optimizer': optimizer.state_dict()
             },
             model_name
