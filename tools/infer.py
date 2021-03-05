@@ -2,20 +2,23 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader
 from config import Config
 from dataset import MyDataset
+from utils import BuildNet
 from dataset import Pipline
 import pandas as pd
 import torch
 
 
 class Inference:
-    def __init__(self, model):
-        self.model = model
+    def __init__(self, ckpt):
+        self.model = None
+        self.ckpt = ckpt
         self.test_dataset = None
         self.test_dataloader = None
         self.device = torch.device(Config.device)
         self.pipline = Pipline()
 
         self.__init_data()
+        self.__init_model()
 
     def __init_data(self):
         self.test_dataset = MyDataset(
@@ -34,6 +37,11 @@ class Inference:
         )
         print(len(self.test_dataloader))
 
+    def __init_model(self):
+        builder = BuildNet(Config.backbone, 4)
+        self.model = builder()
+        self.model.load_state_dict(torch.load(self.ckpt)['state_dict'])
+
     def predict(self):
         pbar = tqdm(enumerate(self.test_dataloader), total=len(self.test_dataloader))
 
@@ -50,9 +58,5 @@ class Inference:
         sub_df.to_csv('../output/submission.csv', header=False, index=False)
 
 if __name__ == '__main__':
-    from utils import BuildNet
-    b = BuildNet(Config.backbone, 4)
-    model = b()
-    model.load_state_dict(torch.load('../tools/epoch16.pth')['state_dict'])
-    i = Inference(model)
+    i = Inference(Config.load_model)
     i.predict()

@@ -1,5 +1,4 @@
 from tensorboardX import SummaryWriter
-from torch import nn
 from tqdm import tqdm
 from dataset import MyDataset
 from config import Config
@@ -8,6 +7,7 @@ from torch.utils.data import DataLoader
 from utils import accuracy, AverageMeter
 from utils import BuildNet
 import torch
+import os
 import torch.optim as optim
 
 
@@ -34,6 +34,8 @@ class Trainer:
         self.__init_data()
 
     def __init_train_status(self):
+        if not os.path.exists(Config.model_output_dir):
+            os.makedirs(Config.model_output_dir)
         torch.cuda.empty_cache()
         self.device = torch.device(Config.device)
         self.criterion = self.__get_loss_fuc(Config.loss)
@@ -98,7 +100,7 @@ class Trainer:
             num_workers=Config.num_workers
         )
 
-    def train_one_epoch(self):
+    def train_one_epoch(self, epoch):
         self.model.train()          # train mode
         losses = AverageMeter()
         top1 = AverageMeter()
@@ -119,7 +121,7 @@ class Trainer:
             top5.update(prec5.item(), data.size(0))
 
             # print(f'train losses: {loss}')
-            log_info = 'train loss: ' + str(losses.avg)
+            log_info = f'epoch: {epoch}/{Config.max_epoch}  ' + 'train loss: ' + str(losses.avg)
             pbar.set_description(log_info)
             self.writer.add_scalar('train_loss',loss.item(), global_step=i)
 
@@ -136,7 +138,7 @@ class Trainer:
         losses = AverageMeter()
         top1 = AverageMeter()
         top5 = AverageMeter()
-        pbar = tqdm(enumerate(self.train_dataloader, len(self.train_dataloader)))
+        pbar = tqdm(enumerate(self.train_dataloader), total=len(self.train_dataloader))
 
         for i, (data, label) in pbar:
             data, label = data.cuda(), label.cuda()
@@ -154,18 +156,18 @@ class Trainer:
         return losses.avg, top1.avg, top5.avg
 
     def run_train(self):
-        for epoch in range(Config.max_epoch):
-            train_loss, top1_acc, top5_acc = self.train_one_epoch()
-            print(f'train_loss: {train_loss}, top1_acc: {top1_acc}, top5_acc: {top5_acc}')
+        for epoch in range(Config.max_epoch+1):
+            train_loss, top1_acc, top5_acc = self.train_one_epoch(epoch)
+            print(f'epoch: {epoch}  train_loss: {train_loss}  top1_acc: {top1_acc}  top5_acc: {top5_acc}')
             if epoch % 4 == 0:
                 self.save_model(
                     epoch=epoch,
                     model=self.model,
                     optimizer = self.optimizer,
-                    model_name=f'epoch{epoch}.pth'
+                    model_name=os.path.join(Config.model_output_dir, f'epoch{epoch}.pth')
                 )
             val_loss, val_top1, val_top5 = self.val_one_epoch()
-            print(f'val_loss: {val_loss}, val_top1: {val_top1}, val_top5: {val_top5}')
+            print(f'val_loss: {val_loss}  val_top1: {val_top1}  val_top5: {val_top5}')
         self.writer.close()
 
     def save_model(self, epoch, model, optimizer, model_name):
