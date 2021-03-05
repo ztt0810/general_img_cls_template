@@ -6,6 +6,7 @@ from utils import BuildNet
 from dataset import Pipline
 import pandas as pd
 import torch
+import os
 
 
 class Inference:
@@ -28,14 +29,12 @@ class Inference:
             mode='test',
             input_size=Config.input_size
         )
-        print(len(self.test_dataset))
         self.test_dataloader = DataLoader(
             self.test_dataset,
             batch_size=1,
             shuffle=False,
             num_workers=Config.num_workers
         )
-        print(len(self.test_dataloader))
 
     def __init_model(self):
         builder = BuildNet(Config.backbone, 4)
@@ -52,10 +51,9 @@ class Inference:
                 outputs = self.model(img)
                 _, pred_label = torch.max(outputs.data, 1)
                 test_preds.append(pred_label.cpu().data.numpy()[0])
-        sub_df = pd.read_csv('../data/test_images.csv')
-        print(len(test_preds))
-        sub_df['num_class'] = test_preds
-        sub_df.to_csv('../output/submission.csv', header=False, index=False)
+        sub_df = pd.read_csv(Config.test_label_root)
+        sub_df['label'] = test_preds
+        sub_df.to_csv(os.path.join(Config.res_output_dir, Config.output_fie), header=False, index=False)
 
 if __name__ == '__main__':
     i = Inference(Config.load_model)

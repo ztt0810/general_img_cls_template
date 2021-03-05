@@ -24,7 +24,8 @@ class Trainer:
         self.criterion = None
         self.backbone = None
         self.pipline = Pipline()
-        self.writer = SummaryWriter('../log')    # create tensorboard
+        self.start_epoch = 0
+        self.writer = SummaryWriter(Config.log_dir)    # create tensorboard
 
 
         self.__init_train_status()
@@ -48,6 +49,11 @@ class Trainer:
     def __init_model(self):
         model_builder = BuildNet(self.backbone, Config.num_classes)
         self.model = model_builder()
+        if Config.resume:
+            resume_model = torch.load(Config.resume)
+            self.model.load_state_dict(resume_model['state_dict'])
+            self.start_epoch = resume_model['epoch']
+            # self.optimizer.load_state_dict(resume_model['optimizer'])
 
     def __init_optimizer(self):
         if Config.optimizer == 'sgd':
@@ -156,25 +162,23 @@ class Trainer:
         return losses.avg, top1.avg, top5.avg
 
     def run_train(self):
-        for epoch in range(Config.max_epoch+1):
+        for epoch in range(self.start_epoch, Config.max_epoch+1):
             train_loss, top1_acc, top5_acc = self.train_one_epoch(epoch)
             print(f'epoch: {epoch}  train_loss: {train_loss}  top1_acc: {top1_acc}  top5_acc: {top5_acc}')
             if epoch % 4 == 0:
                 self.save_model(
                     epoch=epoch,
                     model=self.model,
-                    optimizer = self.optimizer,
                     model_name=os.path.join(Config.model_output_dir, f'epoch{epoch}.pth')
                 )
             val_loss, val_top1, val_top5 = self.val_one_epoch()
             print(f'val_loss: {val_loss}  val_top1: {val_top1}  val_top5: {val_top5}')
         self.writer.close()
 
-    def save_model(self, epoch, model, optimizer, model_name):
+    def save_model(self, epoch, model, model_name):
         torch.save({
             'epoch': epoch + 1,
             'state_dict': model.state_dict(),
-            'optimizer': optimizer.state_dict()
             },
             model_name
         )
