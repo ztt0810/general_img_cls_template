@@ -4,6 +4,7 @@ class Config:
     train_root = '../data/train_images/'
     train_label_root = '../data/train_images.csv'
     test_root = '../data/test_images/'
+    test_label_root = '../data/test_images.csv'
     train_proportion = 1.0  # proportion of training set,
     input_size = 224
     max_epoch = 20
@@ -13,7 +14,7 @@ class Config:
     optimizer = 'adam'       # adam is alternative with lr:1e-5
     lr = 1e-4
     momentum = 0.9
-    device = "cuda"         # cuda  or cpu
+    device = "cuda:0"         # cuda  or cpu
     gpu_id = [0]
     num_workers = 0         # how many workers for loading data
     weight_decay = 5e-4

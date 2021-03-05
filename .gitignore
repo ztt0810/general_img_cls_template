@@ -3,3 +3,4 @@
 /tools/runs/
 /tools/*.pth
 .idea
+/output/

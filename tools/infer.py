@@ -20,7 +20,7 @@ class Inference:
     def __init_data(self):
         self.test_dataset = MyDataset(
             data_root=Config.test_root,
-            # label_root=Config.
+            label_root=Config.test_label_root,
             transforms=self.pipline(mode='test'),
             mode='test',
             input_size=Config.input_size
@@ -28,24 +28,26 @@ class Inference:
         print(len(self.test_dataset))
         self.test_dataloader = DataLoader(
             self.test_dataset,
-            batch_size=Config.val_batch_size,
-            shuffle=True,
+            batch_size=1,
+            shuffle=False,
             num_workers=Config.num_workers
         )
+        print(len(self.test_dataloader))
 
     def predict(self):
-        pbar = tqdm(enumerate(self.test_dataloader), len(self.test_dataloader))
+        pbar = tqdm(enumerate(self.test_dataloader), total=len(self.test_dataloader))
 
         test_preds = []
         for i, img in pbar:
             img = img.to(self.device)
             with torch.no_grad():
-                outputs = self.model(img).detach().cpu().numpy()
+                outputs = self.model(img)
                 _, pred_label = torch.max(outputs.data, 1)
-                test_preds.append(pred_label)
+                test_preds.append(pred_label.cpu().data.numpy()[0])
         sub_df = pd.read_csv('../data/test_images.csv')
+        print(len(test_preds))
         sub_df['num_class'] = test_preds
-        sub_df.to_csv('./output/submission.csv', header=False, index=False)
+        sub_df.to_csv('../output/submission.csv', header=False, index=False)
 
 if __name__ == '__main__':
     from utils import BuildNet
