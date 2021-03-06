@@ -6,6 +6,7 @@ from dataset import Pipline
 from torch.utils.data import DataLoader
 from utils import accuracy, AverageMeter
 from utils import BuildNet
+from torch.cuda.amp import autocast, GradScaler
 import torch
 import os
 import torch.optim as optim
@@ -26,6 +27,8 @@ class Trainer:
         self.pipline = Pipline()
         self.start_epoch = 0
         self.writer = SummaryWriter(Config.log_dir)    # create tensorboard
+
+        self.scaler = GradScaler()  # scaler for mixed precision training
 
 
         self.__init_train_status()
@@ -124,8 +127,17 @@ class Trainer:
             data = data.cuda()
             label = label.cuda()
 
-            output = self.model(data)
-            loss = self.criterion(output, label)
+            # mixed precision training (pytorch > 1.6)
+            with autocast():
+                output = self.model(data)
+                loss = self.criterion(output, label)
+
+                self.scaler.scale(loss).backward()
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+                self.optimizer.zero_grad()
+
+            self.lr_scheduler.step()
 
             # measure accuracy and record loss
             prec1, prec5 = accuracy(output.data, label.data, topk=(1, 3))
@@ -133,15 +145,12 @@ class Trainer:
             top1.update(prec1.item(), data.size(0))
             top5.update(prec5.item(), data.size(0))
 
-            # print(f'train losses: {loss}')
             log_info = f'epoch: {epoch}/{Config.max_epoch}  ' + 'train loss: ' + str(losses.avg)
             pbar.set_description(log_info)
             self.writer.add_scalar('train_loss',loss.item(), global_step=i)
 
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
-            self.lr_scheduler.step()
+
+
 
         return losses.avg, top1.avg, top5.avg
 

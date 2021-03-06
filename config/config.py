@@ -1,12 +1,12 @@
 class Config:
-    backbone = 'resnet50'   # resnext/efficient is alternative
+    backbone = 'tf_efficientnet_b5_ns'   # resnext/efficient is alternative
     num_classes = 4
     train_root = './data/train_images/'
     train_label_root = './data/train_images.csv'
     test_root = './data/test_images/'
     test_label_root = './data/test_images.csv'
     train_proportion = 1.0  # proportion of training set,
-    input_size = 224
+    input_size = 456
     max_epoch = 20
     train_batch_size = 8
     val_batch_size = 16
@@ -25,7 +25,7 @@ class Config:
     lr_decay_epoch = 10
     lr_decay = 0.95         # when val_loss increase, lr = lr*lr_decay
     model_output_dir = './ckpt/' + backbone
-    load_model = './ckpt/resnet50/epoch16.pth'
+    load_model = './ckpt/epoch20.pth'
     resume = ''
     res_output_dir = './output/'
     output_fie = 'submission.csv'
