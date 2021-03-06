@@ -53,7 +53,6 @@ class Trainer:
             resume_model = torch.load(Config.resume)
             self.model.load_state_dict(resume_model['state_dict'])
             self.start_epoch = resume_model['epoch']
-            # self.optimizer.load_state_dict(resume_model['optimizer'])
 
     def __init_optimizer(self):
         if Config.optimizer == 'sgd':
@@ -84,6 +83,7 @@ class Trainer:
                 patience=5,
                 verbose=False
             )
+
     def __init_data(self):
         self.train_dataset = MyDataset(
             Config.train_root,
@@ -102,9 +102,16 @@ class Trainer:
         self.train_dataloader = DataLoader(
             self.train_dataset,
             batch_size=Config.train_batch_size,
+            shuffle=False,
+            num_workers=Config.num_workers
+        )
+        self.val_dataloader = DataLoader(
+            self.val_dataset,
+            batch_size=Config.val_batch_size,
             shuffle=True,
             num_workers=Config.num_workers
         )
+        print(f'{len(self.train_dataset)} train images was loaded, {len(self.val_dataset)} val images was loaded')
 
     def train_one_epoch(self, epoch):
         self.model.train()          # train mode
@@ -144,7 +151,7 @@ class Trainer:
         losses = AverageMeter()
         top1 = AverageMeter()
         top5 = AverageMeter()
-        pbar = tqdm(enumerate(self.train_dataloader), total=len(self.train_dataloader))
+        pbar = tqdm(enumerate(self.val_dataloader), total=len(self.val_dataloader))
 
         for i, (data, label) in pbar:
             data, label = data.cuda(), label.cuda()
